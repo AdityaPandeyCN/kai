@@ -55,7 +55,7 @@ class AnalyzerLSP:
             # trunk-ignore-end(bandit/B603)
             if self.rpc_server.poll() is not None:
                 self.stop()
-                raise Exception(f"Analyzer failed to start: process exited immediately")
+                raise Exception("Analyzer failed to start: process exited immediately")
 
             self.stderr_logging_thread = threading.Thread(
                 target=log_stderr, args=(self.rpc_server.stderr,)
