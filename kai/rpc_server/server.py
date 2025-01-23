@@ -183,15 +183,26 @@ def initialize(
 
         app.log.info(f"Initialized with config: {app.config}")
 
-        app.analyzer = AnalyzerLSP(
-            analyzer_lsp_server_binary=app.config.analyzer_lsp_rpc_path,
-            repo_directory=app.config.root_path,
-            rules_directory=app.config.analyzer_lsp_rules_path,
-            analyzer_lsp_path=app.config.analyzer_lsp_lsp_path,
-            analyzer_java_bundle_path=app.config.analyzer_lsp_java_bundle_path,
-            dep_open_source_labels_path=app.config.analyzer_lsp_dep_labels_path
-            or Path(),
-        )
+        try: 
+            app.analyzer = AnalyzerLSP(
+               analyzer_lsp_server_binary=app.config.analyzer_lsp_rpc_path,
+               repo_directory=app.config.root_path,
+               rules_directory=app.config.analyzer_lsp_rules_path,
+               analyzer_lsp_path=app.config.analyzer_lsp_lsp_path,
+               analyzer_java_bundle_path=app.config.analyzer_lsp_java_bundle_path,
+               dep_open_source_labels_path=app.config.analyzer_lsp_dep_labels_path
+               or Path(),
+            )
+        except Exception as e:
+            server.shutdown_flag = True
+            server.send_response(
+               id=id,
+               error=JsonRpcError(
+                   code=JsonRpcErrorCode.InternalError,
+                   message=str(e),
+               ),
+            )
+            return
 
         internal_config = RpcClientConfig(
             repo_directory=app.config.root_path,
