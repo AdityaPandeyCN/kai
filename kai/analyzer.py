@@ -44,28 +44,36 @@ class AnalyzerLSP:
             args.append("-depOpenSourceLabelsFile")
             args.append(str(dep_open_source_labels_path))
         logger.debug(f"Starting analyzer rpc server with {args}")
-        self.rpc_server = subprocess.Popen(
-            args,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        # trunk-ignore-end(bandit/B603)
 
-        self.stderr_logging_thread = threading.Thread(
-            target=log_stderr, args=(self.rpc_server.stderr,)
-        )
-        self.stderr_logging_thread.start()
+        try:
+            self.rpc_server = subprocess.Popen(
+                args,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            # trunk-ignore-end(bandit/B603)
+            if self.rpc_server.poll() is not None:
+                self.stop()
+                raise Exception(f"Analyzer failed to start: process exited immediately")
 
-        self.rpc = JsonRpcServer(
-            json_rpc_stream=BareJsonStream(
-                cast(BufferedReader, self.rpc_server.stdout),
-                cast(BufferedWriter, self.rpc_server.stdin),
-            ),
-            request_timeout=4 * 60,
-        )
-        self.rpc.start()
-        logger.debug("analyzer rpc server started")
+            self.stderr_logging_thread = threading.Thread(
+                target=log_stderr, args=(self.rpc_server.stderr,)
+            )
+            self.stderr_logging_thread.start()
+
+            self.rpc = JsonRpcServer(
+                json_rpc_stream=BareJsonStream(
+                    cast(BufferedReader, self.rpc_server.stdout),
+                    cast(BufferedWriter, self.rpc_server.stdin),
+                ),
+                request_timeout=4 * 60,
+            )
+            self.rpc.start()
+            logger.debug("analyzer rpc server started")
+        except Exception as e:
+            self.stop()
+            raise Exception(f"Analyzer failed to start: {str(e)}")
 
     def run_analyzer_lsp(
         self,
